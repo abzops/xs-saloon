@@ -31,7 +31,8 @@ export default {
       if (!r) return new Response('Not found', { status: 404 });
       return new Response(r.body, { headers: { ...SEC, 'content-type': TYPES[ext], 'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=300' } });
     }
-    const r = await fromOrigin('/index.html', 60);
+    // Bust GitHub's raw CDN cache every 30 s so a new deploy shows within a minute.
+    const r = await fromOrigin(`/index.html?v=${Math.floor(Date.now() / 30000)}`, 30);
     if (!r) return new Response('XS Salon is updating. Please refresh in a moment.', { status: 503 });
     return new Response(r.body, { headers: { ...SEC, 'content-type': TYPES.html, 'cache-control': 'no-cache', 'content-security-policy': "frame-ancestors 'none'" } });
   },
