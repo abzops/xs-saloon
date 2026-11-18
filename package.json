@@ -1,29 +1,31 @@
 {
-  "name": "xs-saloon",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "xs-salon",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/abzops/xs-saloon.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/abzops/xs-saloon/issues"
-  },
-  "homepage": "https://github.com/abzops/xs-saloon#readme",
-  "devDependencies": {
-    "esbuild": "^0.24.2",
-    "wrangler": "^3.114.17"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "lint": "oxlint",
+    "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/manrope": "^5.3.0",
     "@supabase/supabase-js": "^2.119.0",
-    "htm": "^3.1.1",
-    "preact": "^11.2.0"
+    "@tanstack/react-query": "^5.105.3",
+    "lucide-react": "^1.68.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^8.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.89.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.5"
   }
 }

@@ -1,5 +1,9 @@
 -- XS Salon — business logic (RPC). All writes that touch money or bookings go through these.
 
+-- appointment services are soft-replaced on reschedule (history kept)
+alter table public.appointment_services add column if not exists active boolean not null default true;
+alter policy appt_svc_read on public.appointment_services using (is_salon_member(salon_id) and active);
+
 -- ───────────── Onboarding / membership ─────────────
 create or replace function public.create_salon(p_name text, p_phone text default null, p_city text default null)
 returns uuid language plpgsql security definer set search_path = public as $$
@@ -235,7 +239,7 @@ begin
     if v_old.status in ('completed','cancelled','no_show') then raise exception 'This appointment can no longer be changed'; end if;
     update appointments set client_id = p_client, staff_id = p_staff, start_at = p_start, end_at = v_end,
       notes = nullif(trim(p_notes),'') where id = p_appointment;
-    delete from appointment_services where appointment_id = p_appointment;
+    update appointment_services set active = false where appointment_id = p_appointment and active;
     v_id := p_appointment;
     perform log_audit(p_salon, 'reschedule', 'appointment', v_id, jsonb_build_object('from', v_old.start_at, 'to', p_start));
   end if;
@@ -540,7 +544,6 @@ begin
       select st.id into v_free from salon_staff st
       where st.salon_id = sa.id and st.status = 'active' and st.bookable and (p_staff is null or st.id = p_staff)
         and _staff_free(st.id, v_start, v_end)
-      order by (select count(*) from appointments a where a.staff_id = st.id and a.start_at::date = v_start::date), st.sort
       limit 1;
       if v_free is not null then v_slots := v_slots || to_jsonb(to_char(v_t, 'HH24:MI')); end if;
     end if;
@@ -589,7 +592,7 @@ begin
 end $$;
 
 -- ───────────── Grants ─────────────
-revoke execute on all functions in schema public from public, anon;
+revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on function public.public_salon(text) to anon, authenticated;
 grant execute on function public.public_slots(text,date,uuid[],uuid) to anon, authenticated;
 grant execute on function public.public_book(text,text,text,date,text,uuid[],uuid,text) to anon, authenticated;
@@ -605,3 +608,4 @@ grant execute on function
   public.void_expense(uuid,uuid,text), public.dashboard_summary(uuid), public.sales_report(uuid,date,date),
   public.is_salon_member(uuid), public.has_perm(uuid,text), public.normalize_phone(text)
 to authenticated;
+alter default privileges in schema public revoke execute on functions from public, anon, authenticated;

@@ -1,0 +1,39 @@
+# Checks and builds XS Salon, then publishes dist/ to the `deploy` branch.
+# The Cloudflare worker (worker/index.js) serves salon.xelorsoft.com from that branch.
+# The Supabase URL and publishable key are public by design; data is protected
+# by row level security and permission-checked database functions.
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - name: Publish to deploy branch
+        run: |
+          cd dist
+          git init -q -b deploy
+          git config user.name "Abhinand"
+          git config user.email "abhinand@xelorsoft.com"
+          git add -A
+          git commit -qm "Deploy ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" deploy

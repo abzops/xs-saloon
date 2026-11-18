@@ -357,6 +357,10 @@ create policy exp_read on public.expenses for select to authenticated using (has
 
 grant usage on schema public to anon, authenticated;
 grant select on all tables in schema public to authenticated;
-grant insert, update on public.service_categories, public.services, public.products, public.clients, public.salons to authenticated;
+grant insert, update on public.service_categories, public.services, public.products to authenticated;
+-- salons/clients: only editable columns (counters, status etc. change via RPC only)
+grant update (name, phone, email, address, city, gstin, gst_enabled, gst_rate_bp, prices_include_tax, open_time, close_time,
+  slot_minutes, booking_enabled, booking_note, invoice_prefix, updated_at) on public.salons to authenticated;
+grant update (full_name, email, gender, date_of_birth, anniversary, notes, tags, marketing_opt_in, status) on public.clients to authenticated;
 grant delete on public.service_categories to authenticated;
 revoke all on all tables in schema public from anon;
