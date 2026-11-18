@@ -1,0 +1,29 @@
+{
+  "name": "xs-saloon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abzops/xs-saloon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/abzops/xs-saloon/issues"
+  },
+  "homepage": "https://github.com/abzops/xs-saloon#readme",
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "wrangler": "^3.114.17"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
+    "htm": "^3.1.1",
+    "preact": "^11.2.0"
+  }
+}
