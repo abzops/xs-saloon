@@ -1,136 +1,309 @@
-import { CalendarCheck, Check, ChevronDown, Laptop, MessageCircle, Minus, Receipt, Smartphone, Tablet } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  BarChart3, CalendarDays, Check, ChevronDown, Minus, Package, Plus, Receipt, Scissors, Settings, UserRound, Users,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Logo } from '../../components/ui';
+import { waText } from '../../components/salon';
 import { formatINR } from '../../lib/money';
 import './landing.css';
 
-/* ------------------------------------------------------------------ helpers */
-
+const BRAND = `${import.meta.env.BASE_URL}brand/`;
 const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Adds `.in` once the element scrolls into view (one-shot reveal). */
-function Reveal({ children, className = '', as: Tag = 'div', delay = 0 }: {
-  children: ReactNode; className?: string; as?: 'div' | 'section' | 'li' | 'article'; delay?: number;
-}) {
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (reduced()) { el.classList.add('in'); return; }
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { el.classList.add('in'); io.disconnect(); }
-    }, { rootMargin: '0px 0px -12% 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return <Tag ref={ref as never} className={`reveal ${className}`} style={{ ['--d' as string]: `${delay}ms` }}>{children}</Tag>;
-}
+/* -------------------------------------------------------------- demo salon
+   One made-up salon used across the page, with the same stylists and
+   colours as the "Load demo data" button inside the app. */
 
-/** True while the element is on screen and the tab is visible — animations pause otherwise. */
-function useActive<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [onScreen, setOnScreen] = useState(true);
-  const [visible, setVisible] = useState(true);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting));
-    io.observe(el);
-    const vis = () => setVisible(document.visibilityState === 'visible');
-    document.addEventListener('visibilitychange', vis);
-    return () => { io.disconnect(); document.removeEventListener('visibilitychange', vis); };
-  }, []);
-  return [ref, onScreen && visible && !reduced()] as const;
-}
-
-/** Smoothly counts a number towards `value` with requestAnimationFrame. */
-function useCountUp(value: number, ms = 700) {
-  const [shown, setShown] = useState(value);
-  const from = useRef(value);
-  useEffect(() => {
-    if (reduced()) { setShown(value); from.current = value; return; }
-    const start = performance.now();
-    const a = from.current;
-    let raf = 0;
-    const tick = (t: number) => {
-      const k = Math.min(1, (t - start) / ms);
-      const e = 1 - Math.pow(1 - k, 3);
-      setShown(Math.round(a + (value - a) * e));
-      if (k < 1) raf = requestAnimationFrame(tick);
-      else from.current = value;
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, ms]);
-  return shown;
-}
-
-/* ------------------------------------------------------------- live hero */
-
-// [client, service, stylist, billed paise (0 = just booked online)]
-const VISITS = [
-  ['Lakshmi Nair', 'Haircut · Anu', 30000], ['Meera Menon', 'Facial · Meghna', 0], ['Arjun Das', 'Beard trim · Sajith', 15000],
-  ['Aparna Pillai', 'Global colour · Rinu', 250000], ['Fathima Rizwan', 'Hair spa · Anu', 0], ['Nikhil Varghese', 'Haircut · Sajith', 30000],
-  ['Gayathri Krishnan', 'Keratin · Rinu', 450000], ['Sneha Thomas', 'Manicure · Meghna', 0], ['Vishnu Rajan', 'Haircut · Sajith', 30000],
-  ['Divya Mathew', 'Clean-up · Meghna', 80000],
+const TEAM = [
+  { id: 'anu', name: 'Anu', role: 'Senior stylist', color: '#f9a8d4' },
+  { id: 'rinu', name: 'Rinu', role: 'Hair colour', color: '#93c5fd' },
+  { id: 'sajith', name: 'Sajith', role: 'Barber', color: '#86efac' },
+  { id: 'meghna', name: 'Meghna', role: 'Skin and bridal', color: '#c4b5fd' },
 ] as const;
+type StylistId = (typeof TEAM)[number]['id'];
+const colorOf = (id: StylistId) => TEAM.find((t) => t.id === id)!.color;
 
-type Row = { key: number; name: string; what: string; time: string; paid: number };
+const OPEN_MIN = 10 * 60; // calendar starts 10:00
+const HOURS = 9; // 10:00 – 19:00
 
-function clock(minutesAfterTen: number) {
-  const h = 10 + Math.floor(minutesAfterTen / 60);
-  const m = minutesAfterTen % 60;
+function hhmm(min: number) {
+  const h = Math.floor(min / 60), m = min % 60;
   return `${h > 12 ? h - 12 : h}:${String(m).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
 }
+const hourLabel = (h: number) => `${h > 12 ? h - 12 : h} ${h >= 12 ? 'pm' : 'am'}`;
 
-function LiveDesk() {
-  const [ref, active] = useActive<HTMLDivElement>();
-  const counter = useRef(4);
-  const [rows, setRows] = useState<Row[]>(() =>
-    [3, 2, 1, 0].map((i) => ({ key: i, name: VISITS[i][0], what: VISITS[i][1], time: clock(i * 25), paid: VISITS[i][2] })));
-  const [sales, setSales] = useState(1845000);
-  const [booked, setBooked] = useState(23);
-  const [flash, setFlash] = useState<number | null>(null);
+// [stylist, start (minutes from 10:00), length, client, service]
+const DAY: [StylistId, number, number, string, string][] = [
+  ['anu', 0, 45, 'Lakshmi Nair', 'Haircut + blow-dry'],
+  ['anu', 60, 60, 'Fathima Rizwan', 'Hair spa'],
+  ['anu', 180, 45, 'Divya Mathew', 'Haircut'],
+  ['anu', 300, 90, 'Anjali Varma', 'Smoothening'],
+  ['rinu', 30, 120, 'Aparna Pillai', 'Global colour'],
+  ['rinu', 210, 150, 'Gayathri Krishnan', 'Keratin'],
+  ['rinu', 420, 60, 'Reshma Sunil', 'Root touch-up'],
+  ['sajith', 0, 30, 'Arjun Das', 'Beard trim'],
+  ['sajith', 45, 30, 'Nikhil Varghese', 'Haircut'],
+  ['sajith', 120, 30, 'Vishnu Rajan', 'Haircut'],
+  ['sajith', 180, 45, 'Rahul Menon', 'Haircut + beard'],
+  ['sajith', 300, 30, 'Kevin Joseph', 'Haircut'],
+  ['sajith', 390, 30, 'Abhijith P', 'Beard trim'],
+  ['meghna', 15, 60, 'Meera Menon', 'Facial'],
+  ['meghna', 120, 45, 'Sneha Thomas', 'Manicure'],
+  ['meghna', 240, 120, 'Neethu Babu', 'Bridal trial'],
+];
+const ONLINE: [StylistId, number, number, string, string] = ['anu', 390, 45, 'Haritha S', 'Haircut'];
 
+/* --------------------------------------------------------------- hero */
+
+function HeroDay() {
+  const [online, setOnline] = useState(() => reduced());
   useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => {
-      const n = counter.current++;
-      const v = VISITS[n % VISITS.length];
-      const row: Row = { key: n, name: v[0], what: v[1], time: clock(100 + n * 15), paid: v[2] };
-      setRows((r) => [row, ...r].slice(0, 5));
-      if (v[2] > 0) { setSales((c) => c + v[2]); setFlash(n); } else setBooked((b) => b + 1);
-    }, 2600);
-    return () => clearInterval(id);
-  }, [active]);
-
-  const shownSales = useCountUp(sales);
-  const shownBooked = useCountUp(booked, 400);
+    if (reduced()) return;
+    const t = setTimeout(() => setOnline(true), 2600);
+    return () => clearTimeout(t);
+  }, []);
+  const items = online ? [...DAY, ONLINE] : DAY;
 
   return (
-    <div className="phone" ref={ref} aria-label="XS Salon, live preview">
-      <div className="phone-screen">
-        <div className="ph-top"><img src={`${import.meta.env.BASE_URL}brand/favicon.svg`} alt="" width={18} height={18} /> Glow Studio</div>
-        <div className="ph-today">
-          <span className="ph-date">Saturday, 21 November</span>
-          <span className="ph-lead num">{formatINR(shownSales)}</span>
-          <span className="ph-cap">Sales today</span>
-          <div className="ph-figs">
-            <span><b className="num">{shownBooked}</b>Appointments</span>
-            <span><b className="num">6</b>Booked online</span>
-            <span><b className="num">4</b>Stylists</span>
+    <div className="lp-win" aria-label="XS Salon calendar for a busy Saturday">
+      <aside className="lp-win-side" aria-hidden="true">
+        <img src={`${BRAND}badge-white.svg`} alt="" width={26} height={26} />
+        {[CalendarDays, Receipt, Users, Scissors, UserRound, Package, BarChart3, Settings].map((I, i) => (
+          <span key={i} className={i === 0 ? 'on' : ''}><I size={18} strokeWidth={1.8} /></span>
+        ))}
+      </aside>
+      <div className="lp-win-main">
+        <div className="lp-win-bar">
+          <div>
+            <b>Saturday, 21 November</b>
+            <span className="lp-win-stats">
+              <span><b className="num">{online ? 17 : 16}</b> appointments</span>
+              <span><b className="num">{online ? 7 : 6}</b> booked online</span>
+            </span>
+          </div>
+          <span className="lp-win-new"><Plus size={16} /> New booking</span>
+        </div>
+        <div className="lp-day" style={{ ['--hours' as string]: HOURS }}>
+          <div className="lp-day-head">
+            <span />
+            {TEAM.map((t) => (
+              <span key={t.id}><i className="dot" style={{ background: t.color }} />{t.name}</span>
+            ))}
+          </div>
+          <div className="lp-day-grid">
+            <div className="lp-day-times">
+              {Array.from({ length: HOURS }, (_, i) => <span key={i}>{hourLabel(10 + i)}</span>)}
+            </div>
+            {TEAM.map((t, col) => (
+              <div key={t.id} className="lp-day-col">
+                {items.filter(([s]) => s === t.id).map(([s, start, len, client, svc], i) => {
+                  const isNew = online && client === ONLINE[3];
+                  return (
+                    <div
+                      key={client}
+                      className={`lp-blk ${isNew ? 'new' : ''} ${len <= 30 ? 'short' : ''}`}
+                      style={{
+                        top: `calc(${start} / 60 * var(--hh))`, height: `calc(${len} / 60 * var(--hh) - 3px)`,
+                        ['--c' as string]: colorOf(s), ['--d' as string]: `${700 + col * 90 + i * 70}ms`,
+                      }}
+                    >
+                      <b>{client}</b>
+                      {len > 30 && <span>{svc}</span>}
+                      {isNew && <em>Booked online</em>}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+            <div className="lp-now" style={{ top: `calc(${(16 * 60 + 10 - OPEN_MIN)} / 60 * var(--hh))` }} />
           </div>
         </div>
-        <div className="ph-list" style={{ height: 5 * 52 }}>
-          {rows.map((r, i) => (
-            <div key={r.key} className={`ph-row ${i === 0 ? 'enter' : ''}`} style={{ transform: `translateY(${i * 52}px)`, opacity: i === 4 ? 0 : 1 }}>
-              <span className="ph-av">{r.name.split(' ').map((s) => s[0]).join('')}</span>
-              <span className="ph-name">{r.name}<small>{r.what}</small></span>
-              <span className="ph-end">
-                <span className="ph-time num">{r.time}</span>
-                {r.paid > 0 ? <span className={`ph-paid ${flash === r.key ? 'pop' : ''}`}>+{formatINR(r.paid)}</span> : <span className="ph-time">Booked online</span>}
-              </span>
+      </div>
+      <div className={`lp-win-toast ${online ? 'show' : ''}`} role="status">
+        <span className="dot" style={{ background: colorOf('anu') }} />
+        <span><b>New online booking</b>Haritha S, haircut with Anu at 4:30 pm</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- booking demo */
+
+const SERVICES = [
+  { id: 'cut', name: 'Haircut', min: 30, price: 30000 },
+  { id: 'spa', name: 'Hair spa', min: 60, price: 150000 },
+  { id: 'colour', name: 'Global colour', min: 120, price: 250000 },
+  { id: 'mani', name: 'Manicure', min: 45, price: 60000 },
+] as const;
+const SLOTS = [600, 630, 660, 720, 750, 870, 900, 960, 990, 1050];
+const TAKEN = new Set([630, 720, 900, 990]);
+
+function BookingDemo() {
+  const [svc, setSvc] = useState<(typeof SERVICES)[number] | null>(null);
+  const [who, setWho] = useState<StylistId | null>(null);
+  const [at, setAt] = useState<number | null>(null);
+  const [done, setDone] = useState(false);
+  const step = done ? 4 : !svc ? 1 : !who ? 2 : at === null ? 3 : 3;
+  const reset = () => { setSvc(null); setWho(null); setAt(null); setDone(false); };
+
+  return (
+    <div className="lp-bk">
+      <div className="lp-bk-phone">
+        <div className="lp-bk-screen">
+          <div className="lp-bk-top">
+            <span className="lp-bk-logo">GS</span>
+            <div><b>Glow Studio</b><small>Kadavanthra, Kochi</small></div>
+          </div>
+          <ol className="lp-bk-steps" aria-label="Booking steps">
+            {['Service', 'Stylist', 'Time'].map((s, i) => (
+              <li key={s} className={step > i + 1 ? 'done' : step === i + 1 ? 'on' : ''}>{s}</li>
+            ))}
+          </ol>
+
+          {done ? (
+            <div className="lp-bk-done" role="status">
+              <span className="lp-bk-tick"><Check size={26} strokeWidth={2.4} /></span>
+              <h4>You’re booked</h4>
+              <p>{svc!.name} with {TEAM.find((t) => t.id === who)!.name}<br />Saturday, 21 November at {hhmm(at!)}</p>
+              <button className="lp-bk-link" onClick={reset}>Book another</button>
+            </div>
+          ) : (
+            <div className="lp-bk-body">
+              {step === 1 && (
+                <>
+                  <h4>What would you like?</h4>
+                  {SERVICES.map((s) => (
+                    <button key={s.id} className="lp-bk-opt" onClick={() => setSvc(s)}>
+                      <span><b>{s.name}</b><small>{s.min} min</small></span>
+                      <span className="num">{formatINR(s.price)}</span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {step === 2 && (
+                <>
+                  <button className="lp-bk-back" onClick={() => setSvc(null)}>{svc!.name}, change</button>
+                  <h4>Who should do it?</h4>
+                  {TEAM.map((t) => (
+                    <button key={t.id} className="lp-bk-opt" onClick={() => setWho(t.id)}>
+                      <span className="lp-bk-who"><i style={{ background: t.color }}>{t.name[0]}</i><span><b>{t.name}</b><small>{t.role}</small></span></span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {step === 3 && (
+                <>
+                  <button className="lp-bk-back" onClick={() => { setWho(null); setAt(null); }}>
+                    {svc!.name} with {TEAM.find((t) => t.id === who)!.name}, change
+                  </button>
+                  <h4>Saturday, 21 November</h4>
+                  <div className="lp-bk-slots">
+                    {SLOTS.map((m) => (
+                      <button key={m} disabled={TAKEN.has(m)} aria-pressed={at === m} onClick={() => setAt(m)}>{hhmm(m)}</button>
+                    ))}
+                  </div>
+                  <button className="lp-bk-cta" disabled={at === null} onClick={() => setDone(true)}>
+                    {at === null ? 'Pick a time' : `Book ${hhmm(at)}`}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="lp-bk-cal" aria-live="polite">
+        <div className="lp-bk-cal-head">Your calendar, at the front desk</div>
+        <div className="lp-bk-cal-cols">
+          {TEAM.map((t) => (
+            <div key={t.id} className={`lp-bk-cal-col ${who === t.id ? 'pick' : ''}`}>
+              <span className="lp-bk-cal-name"><i className="dot" style={{ background: t.color }} />{t.name}</span>
+              <div className="lp-bk-cal-track">
+                {done && who === t.id && (
+                  <div className="lp-bk-cal-blk" style={{ ['--c' as string]: t.color, top: `calc(${(at! - 600) / 60} * 52px + 6px)`, height: `calc(${svc!.min / 60} * 52px - 6px)` }}>
+                    <b>{hhmm(at!)}</b><span>{svc!.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="lp-bk-cal-note">
+          {done
+            ? `It’s in ${TEAM.find((t) => t.id === who)!.name}’s column now. Nobody picked up the phone.`
+            : 'Try the booking page. The booking shows up here the moment it’s made.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------- the bill */
+
+const LINES = [
+  { what: 'Global hair colour', who: 'rinu' as StylistId, amount: 250000 },
+  { what: 'Hair spa', who: 'anu' as StylistId, amount: 150000 },
+  { what: 'Argan oil shampoo', who: null, amount: 95000 },
+];
+const SUB = LINES.reduce((s, l) => s + l.amount, 0);
+const DISC = Math.round(SUB * 0.1);
+const TOTAL = SUB - DISC;
+const TAXABLE = Math.round(TOTAL / 1.18);
+const GST = TOTAL - TAXABLE;
+
+function Receipt_() {
+  return (
+    <div className="lp-rc" aria-label="Sample bill">
+      <div className="lp-rc-head">
+        <div><b>Glow Studio</b><small>Bill GS-0418 · 21 Nov 2026, 5:42 pm</small></div>
+        <span className="lp-rc-paid">Paid</span>
+      </div>
+      <div className="lp-rc-client">Aparna Pillai</div>
+      {LINES.map((l) => (
+        <div key={l.what} className="lp-rc-line">
+          <span>{l.what}{l.who && <small><i className="dot" style={{ background: colorOf(l.who) }} />{TEAM.find((t) => t.id === l.who)!.name}</small>}</span>
+          <span className="num">{formatINR(l.amount)}</span>
+        </div>
+      ))}
+      <div className="lp-rc-line sub"><span>Discount 10%</span><span className="num">−{formatINR(DISC)}</span></div>
+      <div className="lp-rc-tax">
+        <div><span>Taxable value</span><span className="num">{formatINR(TAXABLE)}</span></div>
+        <div><span>CGST 9%</span><span className="num">{formatINR(GST / 2)}</span></div>
+        <div><span>SGST 9%</span><span className="num">{formatINR(GST / 2)}</span></div>
+      </div>
+      <div className="lp-rc-total"><span>Total, GST included</span><span className="num">{formatINR(TOTAL)}</span></div>
+      <div className="lp-rc-pay">
+        <span>UPI <b className="num">{formatINR(400000)}</b></span>
+        <span>Cash <b className="num">{formatINR(TOTAL - 400000)}</b></span>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------- WhatsApp */
+
+function WhatsAppDemo() {
+  const [lang, setLang] = useState<'en' | 'ml'>('en');
+  const tz = 'Asia/Kolkata';
+  const msgs = [
+    { k: 'reminder' as const, f: { name: 'Lakshmi Nair', start: '2026-11-21T11:00:00Z', services: 'Haircut' }, t: 'Fri, 7:30 pm' },
+    { k: 'thanks' as const, f: { name: 'Lakshmi Nair' }, t: 'Sat, 5:50 pm' },
+    { k: 'birthday' as const, f: { name: 'Lakshmi Nair' }, t: '3 Dec, 9:00 am' },
+  ];
+  return (
+    <div className="lp-wa">
+      <div className="lp-wa-switch" role="group" aria-label="Message language">
+        <button aria-pressed={lang === 'en'} onClick={() => setLang('en')}>English</button>
+        <button aria-pressed={lang === 'ml'} onClick={() => setLang('ml')} lang="ml">മലയാളം</button>
+      </div>
+      <div className="lp-wa-chat" lang={lang}>
+        <div className="lp-wa-top"><span className="lp-bk-logo">GS</span><b>Glow Studio</b></div>
+        <div className="lp-wa-msgs">
+          {msgs.map((m) => (
+            <div key={m.k + lang} className="lp-wa-msg">
+              <p>{waText(m.k, lang, m.f, 'Glow Studio', tz)}</p>
+              <small>{m.t}</small>
             </div>
           ))}
         </div>
@@ -139,51 +312,7 @@ function LiveDesk() {
   );
 }
 
-/* ------------------------------------------------------------ sections */
-
-const STEPS = [
-  { title: 'They book themselves', body: 'Your link on Instagram and WhatsApp. Clients pick a service, a stylist and a free slot — at midnight if they like.', ui: <MiniBook /> },
-  { title: 'It lands in your calendar', body: 'A column per stylist. No double bookings, no lost diary pages.', ui: <MiniCalendar /> },
-  { title: 'Bill in a few taps', body: 'Services already on the bill. Cash, UPI or split. The receipt goes on WhatsApp.', ui: <MiniBill /> },
-];
-
-function MiniBook() {
-  return <div className="mini"><div className="mini-hit"><b>Haircut</b><small>30 min</small><span className="tag ok">₹300</span></div><div className="mini-btn"><CalendarCheck size={14} /> Sat 21 Nov, 4:30 pm</div></div>;
-}
-function MiniCalendar() {
-  return <div className="mini"><div className="mini-hit"><b>Lakshmi Nair</b><small>4:30 pm · Anu</small><span className="tag ok">Confirmed</span></div><div className="mini-hit"><b>Arjun Das</b><small>5:00 pm · Sajith</small><span className="tag">Online</span></div></div>;
-}
-function MiniBill() {
-  return <div className="mini"><div className="mini-btn"><Receipt size={14} /> Complete bill · ₹1,800</div><div className="mini-toast"><MessageCircle size={14} /> Bill sent to Lakshmi on WhatsApp</div></div>;
-}
-
-const BILL = [
-  { what: 'Global hair colour · Rinu', amount: 250000, kind: 'charge' },
-  { what: 'Hair spa · Anu', amount: 150000, kind: 'charge' },
-  { what: 'Argan oil shampoo', amount: 95000, kind: 'charge' },
-  { what: 'Discount 10%', amount: -49500, kind: 'pay' },
-] as const;
-
-function Bill() {
-  let running = 0;
-  return (
-    <div className="ledger">
-      {BILL.map((l, i) => {
-        running += l.amount;
-        return (
-          <Reveal key={i} className="ledger-row" delay={i * 90}>
-            <span>{l.what}</span>
-            <span className={`num ${l.kind}`}>{l.amount > 0 ? '' : '−'}{formatINR(Math.abs(l.amount))}</span>
-            <span className="num bal">{formatINR(running)}</span>
-          </Reveal>
-        );
-      })}
-      <Reveal className="ledger-total" delay={BILL.length * 90}>
-        <span>Total incl. 18% GST</span><span className="num">{formatINR(running)}</span>
-      </Reveal>
-    </div>
-  );
-}
+/* --------------------------------------------------------- reference */
 
 const ROLES = ['Owner', 'Manager', 'Reception', 'Stylist'] as const;
 const MATRIX: [string, boolean[]][] = [
@@ -195,25 +324,37 @@ const MATRIX: [string, boolean[]][] = [
   ['Manage team, commissions and settings', [true, false, false, false]],
 ];
 
-const FEATURES = [
-  ['Appointments', 'A column per stylist, working hours, reschedule, no-shows and a double-booking guard.'],
-  ['Online booking', 'Your own booking page. Clients choose services, stylist and a free time slot.'],
-  ['Billing and GST', 'Services, products and custom items. GST included or added, CGST and SGST shown.'],
-  ['Payments', 'Cash, UPI, card or bank. Split payments, tips and part-payments with dues tracked.'],
-  ['Clients', 'Visit history, favourite services, notes, tags and birthdays — all in one profile.'],
-  ['WhatsApp', 'Reminders, thank-yous, birthday wishes and bills in English or Malayalam.'],
-  ['Team and commission', 'Roles for every person, and commission worked out on every bill.'],
-  ['Inventory', 'Retail and salon-use products, stock in and out, low-stock alerts.'],
-  ['Reports', 'Sales by day, top services, team performance, expenses and profit. CSV export.'],
-  ['Audit trail', 'Every bill, void and change is recorded with who did it.'],
+const GROUPS: [string, string[]][] = [
+  ['At the front desk', [
+    'A calendar column for every stylist, with working days and hours',
+    'A warning before anyone is double-booked',
+    'Confirm, check in, reschedule, cancel or mark a no-show',
+    'Your own online booking page, no login for clients',
+    'Client profiles with visits, favourite services, notes and birthdays',
+  ]],
+  ['On the bill', [
+    'Services, products and custom items on one bill',
+    'GST included or added on top, with CGST and SGST shown',
+    'Cash, UPI, card or bank, split across methods',
+    'Tips, discounts and part-payments that become dues',
+    'Print the bill or send it on WhatsApp',
+  ]],
+  ['For the owner', [
+    'Sales by day, top services and payment methods',
+    'Commission for every stylist, worked out bill by bill',
+    'Stock in and out, with low-stock alerts',
+    'Expenses and estimated profit, with CSV export',
+    'A record of every bill, void and change, and who made it',
+  ]],
 ];
 
 const FAQ = [
-  ['Is my salon’s data kept separate?', 'Yes. Every record belongs to one salon, and the database itself refuses any request that crosses salons — not just the app screens.'],
-  ['Do I need to install anything?', 'No. Open it in the browser on any phone, tablet or laptop. On a phone, Add to Home Screen and it opens full-screen like an app.'],
-  ['How do clients book online?', 'You get a link like salon.xelorsoft.com/book/your-salon. Put it in your Instagram bio, Google profile and WhatsApp. Bookings appear in your calendar instantly.'],
-  ['Can my stylists have their own login?', 'Yes. Add their email in Team and they sign up with it. Their role decides what they can see and do.'],
-  ['What happens after the 14-day trial?', 'Nothing is deleted. Your data stays yours, and you can export it any time.'],
+  ['Do I need to install anything?', 'No. It runs in the browser on any phone, tablet or laptop. On a phone, choose Add to Home Screen and it opens full-screen like an app.'],
+  ['How do clients book online?', 'You get a link like salon.xelorsoft.com/book/your-salon. Put it in your Instagram bio, Google profile and WhatsApp status. Bookings appear in your calendar straight away.'],
+  ['Can my stylists have their own login?', 'Yes. Add their email in Team and they sign up with it. Their role decides what they can see and do, so a stylist sees the calendar but not your reports.'],
+  ['Does it send WhatsApp messages by itself?', 'No. XS Salon writes the message in English or Malayalam, and one tap opens WhatsApp with it filled in. You or your staff press send, from the salon’s own number.'],
+  ['Is my salon’s data kept separate?', 'Yes. Every record belongs to one salon, and the database itself refuses any request that crosses salons. Your data is stored in India.'],
+  ['What happens after the 14-day trial?', 'Nothing is deleted. Your clients, bills and reports stay yours, and you can export them any time.'],
 ];
 
 function Faq() {
@@ -232,12 +373,21 @@ function Faq() {
   );
 }
 
+function Mark({ dark = true }: { dark?: boolean }) {
+  return (
+    <span className={`lp-mark ${dark ? 'on-dark' : ''}`}>
+      <img src={`${BRAND}${dark ? 'badge-white' : 'badge-black'}.svg`} alt="" width={30} height={30} />
+      <span>Salon</span>
+    </span>
+  );
+}
+
 /* ---------------------------------------------------------------- page */
 
 export function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    document.title = 'XS Salon — Salon software by Xelorsoft';
+    document.title = 'XS Salon — Appointments, billing and online booking for salons';
     const on = () => setScrolled(window.scrollY > 24);
     on();
     window.addEventListener('scroll', on, { passive: true });
@@ -248,9 +398,9 @@ export function LandingPage() {
     <div className="lp">
       <header className={`lp-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="lp-wrap lp-nav-in">
-          <Link to="/" aria-label="XS Salon home"><Logo onDark width={132} /></Link>
+          <Link to="/" aria-label="XS Salon home"><Mark /></Link>
           <nav className="lp-links" aria-label="Sections">
-            <a href="#how">How it works</a><a href="#billing">Billing</a><a href="#features">Features</a><a href="#faq">Questions</a>
+            <a href="#booking">Online booking</a><a href="#billing">Billing</a><a href="#whatsapp">WhatsApp</a><a href="#features">Features</a><a href="#faq">Questions</a>
           </nav>
           <div className="row">
             <Link className="btn ghost on-dark" to="/login">Sign in</Link>
@@ -260,68 +410,76 @@ export function LandingPage() {
       </header>
 
       <section className="lp-hero">
-        <div className="lp-wrap lp-hero-in">
+        <div className="lp-wrap">
           <div className="lp-hero-copy">
-            <h1>
-              <span className="line" style={{ ['--d' as string]: '60ms' }}>Your salon, fully booked.</span>
-              <span className="line" style={{ ['--d' as string]: '160ms' }}>Every bill, every stylist,</span>
-              <span className="line" style={{ ['--d' as string]: '260ms' }}>in one place.</span>
-            </h1>
-            <p className="rise" style={{ ['--d' as string]: '380ms' }}>
-              Online booking, a calendar for your team, GST bills, client history and WhatsApp — on the phone, tablet or laptop you already have.
-            </p>
-            <div className="row rise" style={{ ['--d' as string]: '480ms' }}>
-              <Link className="btn primary on-dark lg" to="/login?mode=signup">Start 14-day free trial</Link>
-              <Link className="btn on-dark lg" to="/login">Sign in</Link>
+            <h1 className="rise" style={{ ['--d' as string]: '40ms' }}>Your salon, fully booked.</h1>
+            <div className="lp-hero-side">
+              <p className="rise" style={{ ['--d' as string]: '160ms' }}>
+                Appointments for every stylist, online booking, GST bills and WhatsApp messages, in one app your whole team can use.
+              </p>
+              <div className="row rise" style={{ ['--d' as string]: '260ms' }}>
+                <Link className="btn primary on-dark lg" to="/login?mode=signup">Start 14-day free trial</Link>
+                <a className="btn on-dark lg" href="#booking">Try the booking page</a>
+              </div>
             </div>
-            <p className="lp-fine rise" style={{ ['--d' as string]: '560ms' }}>Every feature included in the trial. No card needed.</p>
           </div>
-          <div className="lp-hero-device rise-up" style={{ ['--d' as string]: '200ms' }}>
-            <LiveDesk />
+          <div className="lp-hero-app rise-up" style={{ ['--d' as string]: '300ms' }}>
+            <HeroDay />
           </div>
         </div>
       </section>
 
-      <section id="how" className="lp-section">
+      <section className="lp-facts" aria-label="At a glance">
+        <div className="lp-wrap lp-facts-in">
+          <p><b>No card needed</b>Every feature in the 14-day trial</p>
+          <p><b>Works on what you have</b>Phone, tablet or laptop, in the browser</p>
+          <p><b>English and Malayalam</b>For client messages on WhatsApp</p>
+          <p><b>Data stored in India</b>Each salon’s records kept separate</p>
+        </div>
+      </section>
+
+      <section id="booking" className="lp-section">
         <div className="lp-wrap">
-          <Reveal className="lp-head">
-            <h2>From booking to bill, without the diary.</h2>
-            <p>The whole visit, in three steps.</p>
-          </Reveal>
-          <ol className="steps">
-            {STEPS.map((s, i) => (
-              <Reveal as="li" key={s.title} className="step" delay={i * 120}>
-                <div className="step-ui">{s.ui}</div>
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
-              </Reveal>
-            ))}
-          </ol>
+          <div className="lp-head">
+            <h2>Clients book themselves. Even at midnight.</h2>
+            <p>Share one link on Instagram, Google and WhatsApp. Clients choose a service, a stylist and a free time, and it lands straight in your calendar. Try it.</p>
+          </div>
+          <BookingDemo />
         </div>
       </section>
 
       <section id="billing" className="lp-section dark">
         <div className="lp-wrap split">
-          <Reveal className="lp-head">
-            <h2>Bills that add up. To the paisa.</h2>
-            <p>Services, products and discounts on one bill, GST worked out for you, and each line credited to the stylist who did it.</p>
+          <div className="lp-head">
+            <h2>Bills that add up, to the paisa.</h2>
+            <p>Add the services, products and a discount. XS Salon works out the GST, splits the payment and credits each service to the stylist who did it.</p>
             <ul className="ticks">
-              <li><Check size={18} /> Commission calculated on every bill, per stylist</li>
+              <li><Check size={18} /> Commission worked out on every bill, for every stylist</li>
               <li><Check size={18} /> Part-payments become dues you can collect later</li>
-              <li><Check size={18} /> A mistake is voided with a reason — never silently edited</li>
+              <li><Check size={18} /> A wrong bill is voided with a reason, never quietly edited</li>
             </ul>
-          </Reveal>
-          <Reveal delay={120}><Bill /></Reveal>
+          </div>
+          <Receipt_ />
         </div>
       </section>
 
-      <section className="lp-section">
+      <section id="whatsapp" className="lp-section">
+        <div className="lp-wrap split">
+          <div className="lp-head">
+            <h2>The right message, in their language.</h2>
+            <p>Reminders, thank-yous, birthday wishes and dues, already written in English or Malayalam with the client’s name and time filled in. One tap opens WhatsApp on your salon’s number.</p>
+          </div>
+          <WhatsAppDemo />
+        </div>
+      </section>
+
+      <section className="lp-section tint">
         <div className="lp-wrap">
-          <Reveal className="lp-head">
+          <div className="lp-head">
             <h2>Everyone signs in as themselves.</h2>
             <p>Reception can bill. Only you can void it.</p>
-          </Reveal>
-          <Reveal className="matrix-wrap" delay={100}>
+          </div>
+          <div className="matrix-wrap">
             <table className="matrix">
               <thead><tr><th />{ROLES.map((r) => <th key={r}>{r}</th>)}</tr></thead>
               <tbody>
@@ -335,68 +493,67 @@ export function LandingPage() {
                 ))}
               </tbody>
             </table>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="lp-section tint">
-        <div className="lp-wrap">
-          <Reveal className="lp-head center">
-            <h2>Built for the chair, the counter and the owner’s desk.</h2>
-          </Reveal>
-          <div className="devices">
-            {[
-              { icon: Smartphone, t: 'Phone', d: 'A real app feel: tab bar, swipe-down sheets, add to home screen.' },
-              { icon: Tablet, t: 'Tablet', d: 'The reception screen. The day’s calendar and fast billing.' },
-              { icon: Laptop, t: 'Laptop', d: 'Reports, team commission and CSV exports at the owner’s desk.' },
-            ].map((d, i) => (
-              <Reveal key={d.t} className="device-card" delay={i * 110}>
-                <d.icon size={28} strokeWidth={1.6} />
-                <h3>{d.t}</h3>
-                <p>{d.d}</p>
-              </Reveal>
-            ))}
           </div>
         </div>
       </section>
 
       <section id="features" className="lp-section">
         <div className="lp-wrap">
-          <Reveal className="lp-head">
+          <div className="lp-head">
             <h2>Everything a salon runs on, nothing it doesn’t.</h2>
-          </Reveal>
-          <dl className="features">
-            {FEATURES.map(([t, d], i) => (
-              <Reveal key={t} className="feature" delay={(i % 2) * 80}>
-                <dt>{t}</dt><dd>{d}</dd>
-              </Reveal>
+          </div>
+          <div className="lp-groups">
+            {GROUPS.map(([title, items]) => (
+              <div key={title} className="lp-group">
+                <h3>{title}</h3>
+                <ul>{items.map((t) => <li key={t}>{t}</li>)}</ul>
+              </div>
             ))}
-          </dl>
+          </div>
         </div>
       </section>
 
-      <section id="faq" className="lp-section">
+      <section id="faq" className="lp-section tint">
         <div className="lp-wrap narrow">
-          <Reveal className="lp-head"><h2>Questions owners ask</h2></Reveal>
-          <Reveal delay={80}><Faq /></Reveal>
+          <div className="lp-head"><h2>Questions owners ask</h2></div>
+          <Faq />
         </div>
       </section>
 
       <section className="lp-section dark cta">
         <div className="lp-wrap">
-          <Reveal className="cta-in">
+          <div className="cta-in">
             <h2>Try it on this weekend’s rush.</h2>
-            <p>14 days, every feature, your own salon.</p>
-            <Link className="btn primary on-dark lg" to="/login?mode=signup">Start free trial</Link>
-          </Reveal>
+            <p>14 days, every feature, your own salon. Load sample data in one tap to see it full.</p>
+            <div className="row">
+              <Link className="btn primary on-dark lg" to="/login?mode=signup">Start free trial</Link>
+              <Link className="btn on-dark lg" to="/login">Sign in</Link>
+            </div>
+          </div>
         </div>
       </section>
 
       <footer className="lp-foot">
         <div className="lp-wrap lp-foot-in">
-          <Logo width={110} />
-          <span>XS Salon by Xelorsoft</span>
-          <span>© 2026 Xelorsoft · <a href="mailto:info@xelorsoft.com">info@xelorsoft.com</a></span>
+          <div className="lp-foot-brand">
+            <Mark dark={false} />
+            <p>Appointments, billing and online booking for salons in India.</p>
+          </div>
+          <nav aria-label="Footer">
+            <a href="#booking">Online booking</a>
+            <a href="#billing">Billing</a>
+            <a href="#features">Features</a>
+            <Link to="/login">Sign in</Link>
+          </nav>
+          <nav aria-label="Xelorsoft">
+            <a href="https://xelorsoft.com">Xelorsoft</a>
+            <a href="https://xsconnect.xelorsoft.com">XS Connect</a>
+            <a href="mailto:info@xelorsoft.com">info@xelorsoft.com</a>
+          </nav>
+        </div>
+        <div className="lp-wrap lp-foot-base">
+          <a href="https://xelorsoft.com" aria-label="Xelorsoft"><Logo width={96} /></a>
+          <span>© 2026 Xelorsoft</span>
         </div>
       </footer>
     </div>
