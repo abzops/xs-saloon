@@ -18,6 +18,7 @@ import { Empty, Loading, Notice, ToastProvider } from './components/ui';
 import { LoginPage, SetNewPassword, SetupSalon } from './features/auth/AuthPages';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { CalendarPage } from './features/calendar/CalendarPage';
+import { LandingPage } from './features/landing/LandingPage';
 import { errorMessage } from './lib/errors';
 
 const SalesPage = lazy(() => import('./features/sales/SalesPage').then((m) => ({ default: m.SalesPage })));
@@ -62,12 +63,12 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-/** Signed out: sign in. Signed in: straight to the salon. */
+/** Signed out: landing page. Signed in: straight to the salon. */
 function Root() {
   const { session, loading, recovering } = useAuth();
   if (loading) return <Splash />;
   if (recovering) return <SetNewPassword />;
-  if (!session) return <LoginPage />;
+  if (!session) return <LandingPage />;
   return <Home />;
 }
 

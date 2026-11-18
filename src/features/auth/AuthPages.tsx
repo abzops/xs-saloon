@@ -105,7 +105,7 @@ export function LoginPage() {
   const ready = !!email && (mode === 'reset' || !!password) && (mode !== 'signup' || !!name.trim());
 
   return (
-    <AuthLayout back={false}>
+    <AuthLayout>
       <div className="ios-titles">
         <h1 key={title} className="swap">{title}</h1>
         <p key={sub} className="swap muted">{sub}</p>
