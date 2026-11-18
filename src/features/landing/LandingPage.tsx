@@ -1,5 +1,5 @@
 import {
-  BarChart3, CalendarDays, Check, ChevronDown, Minus, Package, Plus, Receipt, Scissors, Settings, UserRound, Users,
+  BarChart3, CalendarDays, Check, ChevronDown, IndianRupee, Minus, Package, Plus, Receipt, Scissors, Settings, UserRound, Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -166,6 +166,7 @@ function BookingDemo() {
               <span className="lp-bk-tick"><Check size={26} strokeWidth={2.4} /></span>
               <h4>You’re booked</h4>
               <p>{svc!.name} with {TEAM.find((t) => t.id === who)!.name}<br />Saturday, 21 November at {hhmm(at!)}</p>
+              <p className="lp-bk-where">At the salon, it’s already in {TEAM.find((t) => t.id === who)!.name}’s column. Nobody had to pick up the phone.</p>
               <button className="lp-bk-link" onClick={reset}>Book another</button>
             </div>
           ) : (
@@ -281,6 +282,33 @@ function Receipt_() {
   );
 }
 
+/* ------------------------------------------------------ owner's phone */
+
+function OwnerPhone() {
+  const methods: [string, number][] = [['UPI', 1135000], ['Cash', 620000], ['Card', 90000]];
+  return (
+    <div className="lp-own" aria-label="The owner's home screen in XS Salon">
+      <div className="lp-own-screen">
+        <small>Saturday, 21 November</small>
+        <b className="lp-own-hi">Good evening</b>
+        <div className="lp-own-sales">
+          <span>Sales today · 23 bills</span>
+          <b className="num">{formatINR(methods.reduce((t, [, v]) => t + v, 0))}</b>
+          <div className="lp-own-methods">
+            {methods.map(([k, v]) => <span key={k}>{k} <b className="num">{formatINR(v)}</b></span>)}
+          </div>
+        </div>
+        <div className="lp-own-stats">
+          <div><span><CalendarDays size={15} />Appointments</span><b className="num">17</b><small>3 still to come · 7 online</small></div>
+          <div><span><IndianRupee size={15} />Dues</span><b className="num due">{formatINR(120000)}</b><small>2 clients</small></div>
+          <div><span><Package size={15} />Low stock</span><b className="num">2</b><small>items to reorder</small></div>
+          <div><span><Users size={15} />New clients</span><b className="num">38</b><small>this month</small></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------- WhatsApp */
 
 function WhatsAppDemo() {
@@ -319,7 +347,7 @@ const MATRIX: [string, boolean[]][] = [
   ['See the calendar and book clients', [true, true, true, true]],
   ['Create bills and take payments', [true, true, true, false]],
   ['Add and edit clients', [true, true, true, false]],
-  ['Void bills, see reports and expenses', [true, true, false, false]],
+  ['Cancel bills, see reports and expenses', [true, true, false, false]],
   ['Edit services and prices', [true, true, false, false]],
   ['Manage team, commissions and settings', [true, false, false, false]],
 ];
@@ -343,18 +371,21 @@ const GROUPS: [string, string[]][] = [
     'Sales by day, top services and payment methods',
     'Commission for every stylist, worked out bill by bill',
     'Stock in and out, with low-stock alerts',
-    'Expenses and estimated profit, with CSV export',
+    'Expenses and estimated profit, downloadable as a spreadsheet',
     'A record of every bill, void and change, and who made it',
   ]],
 ];
 
 const FAQ = [
+  ['How much does it cost?', 'The first 14 days are free, with every feature and no card needed. Before your trial ends we’ll share the monthly plan, and you decide then. If you don’t continue, nothing is charged.'],
+  ['I’m not registered for GST. Can I still use it?', 'Yes. GST is off unless you turn it on in Settings, so your bills show just the total. If you register later, switch it on and add your GSTIN.'],
   ['Do I need to install anything?', 'No. It runs in the browser on any phone, tablet or laptop. On a phone, choose Add to Home Screen and it opens full-screen like an app.'],
   ['How do clients book online?', 'You get a link like salon.xelorsoft.com/book/your-salon. Put it in your Instagram bio, Google profile and WhatsApp status. Bookings appear in your calendar straight away.'],
   ['Can my stylists have their own login?', 'Yes. Add their email in Team and they sign up with it. Their role decides what they can see and do, so a stylist sees the calendar but not your reports.'],
   ['Does it send WhatsApp messages by itself?', 'No. XS Salon writes the message in English or Malayalam, and one tap opens WhatsApp with it filled in. You or your staff press send, from the salon’s own number.'],
   ['Is my salon’s data kept separate?', 'Yes. Every record belongs to one salon, and the database itself refuses any request that crosses salons. Your data is stored in India.'],
-  ['What happens after the 14-day trial?', 'Nothing is deleted. Your clients, bills and reports stay yours, and you can export them any time.'],
+  ['Is my data safe if I stop using it?', 'Nothing is deleted. Your clients, bills and reports stay in your account, and you can download your reports as a spreadsheet any time.'],
+  ['Who do I contact if I get stuck?', 'Write to support@xelorsoft.com. A person from our team reads every message and replies.'],
 ];
 
 function Faq() {
@@ -400,7 +431,7 @@ export function LandingPage() {
         <div className="lp-wrap lp-nav-in">
           <Link to="/" aria-label="XS Salon home"><Mark /></Link>
           <nav className="lp-links" aria-label="Sections">
-            <a href="#booking">Online booking</a><a href="#billing">Billing</a><a href="#whatsapp">WhatsApp</a><a href="#features">Features</a><a href="#faq">Questions</a>
+            <a href="#booking">Online booking</a><a href="#billing">Billing</a><a href="#owner">For owners</a><a href="#start">Getting started</a><a href="#faq">Questions</a>
           </nav>
           <div className="row">
             <Link className="btn ghost on-dark" to="/login">Sign in</Link>
@@ -415,12 +446,13 @@ export function LandingPage() {
             <h1 className="rise" style={{ ['--d' as string]: '40ms' }}>Your salon, fully booked.</h1>
             <div className="lp-hero-side">
               <p className="rise" style={{ ['--d' as string]: '160ms' }}>
-                Appointments for every stylist, online booking, GST bills and WhatsApp messages, in one app your whole team can use.
+                Bookings, bills and your team in one app. Fewer calls at the front desk, no more paper diary, and today’s sales on your phone wherever you are.
               </p>
               <div className="row rise" style={{ ['--d' as string]: '260ms' }}>
                 <Link className="btn primary on-dark lg" to="/login?mode=signup">Start 14-day free trial</Link>
                 <a className="btn on-dark lg" href="#booking">Try the booking page</a>
               </div>
+              <p className="lp-hero-note rise" style={{ ['--d' as string]: '320ms' }}>No card needed. Nothing to install.</p>
             </div>
           </div>
           <div className="lp-hero-app rise-up" style={{ ['--d' as string]: '300ms' }}>
@@ -431,10 +463,10 @@ export function LandingPage() {
 
       <section className="lp-facts" aria-label="At a glance">
         <div className="lp-wrap lp-facts-in">
-          <p><b>No card needed</b>Every feature in the 14-day trial</p>
-          <p><b>Works on what you have</b>Phone, tablet or laptop, in the browser</p>
+          <p><b>Nothing to install</b>Works on the phone, tablet or laptop you have</p>
+          <p><b>GST only if you need it</b>Leave it off if you’re not registered</p>
           <p><b>English and Malayalam</b>For client messages on WhatsApp</p>
-          <p><b>Data stored in India</b>Each salon’s records kept separate</p>
+          <p><b>Stored in India</b>Each salon’s records kept separate</p>
         </div>
       </section>
 
@@ -452,11 +484,11 @@ export function LandingPage() {
         <div className="lp-wrap split">
           <div className="lp-head">
             <h2>Bills that add up, to the paisa.</h2>
-            <p>Add the services, products and a discount. XS Salon works out the GST, splits the payment and credits each service to the stylist who did it.</p>
+            <p>Tap the services and products, add a discount, take cash or UPI. XS Salon does the maths and notes which stylist did what.</p>
             <ul className="ticks">
-              <li><Check size={18} /> Commission worked out on every bill, for every stylist</li>
-              <li><Check size={18} /> Part-payments become dues you can collect later</li>
-              <li><Check size={18} /> A wrong bill is voided with a reason, never quietly edited</li>
+              <li><Check size={18} /> Each stylist’s commission adds up by itself, so month-end has no arguments</li>
+              <li><Check size={18} /> If a client pays part now, the rest is saved as due</li>
+              <li><Check size={18} /> GST is optional, and only shows when you switch it on</li>
             </ul>
           </div>
           <Receipt_ />
@@ -473,12 +505,21 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="lp-section tint">
+      <section id="owner" className="lp-section tint">
         <div className="lp-wrap">
-          <div className="lp-head">
-            <h2>Everyone signs in as themselves.</h2>
-            <p>Reception can bill. Only you can void it.</p>
+          <div className="split">
+            <div className="lp-head">
+              <h2>Not at the salon? You still know.</h2>
+              <p>Open the app at home and see today’s sales, cash and UPI, who’s booked and what’s still due.</p>
+              <ul className="ticks dark-ink">
+                <li><Check size={18} /> Every bill shows who made it</li>
+                <li><Check size={18} /> Only you or your manager can cancel a bill, and the reason is kept</li>
+                <li><Check size={18} /> Expenses and profit for the month, without a notebook</li>
+              </ul>
+            </div>
+            <OwnerPhone />
           </div>
+          <h3 className="lp-sub">Who can do what</h3>
           <div className="matrix-wrap">
             <table className="matrix">
               <thead><tr><th />{ROLES.map((r) => <th key={r}>{r}</th>)}</tr></thead>
@@ -494,6 +535,20 @@ export function LandingPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section id="start" className="lp-section">
+        <div className="lp-wrap">
+          <div className="lp-head">
+            <h2>Set up in one afternoon.</h2>
+            <p>No installation and no technician visit. If you can use WhatsApp, you can set this up.</p>
+          </div>
+          <ol className="lp-steps">
+            <li><b>Sign up and name your salon</b><span>Add your address and opening hours.</span></li>
+            <li><b>Add your menu and your team</b><span>Services with price and time, and each stylist’s working days. Or tap Load sample data to look around first.</span></li>
+            <li><b>Share your booking link</b><span>Put it in your Instagram bio and WhatsApp status. Bookings start landing in your calendar.</span></li>
+          </ol>
         </div>
       </section>
 
@@ -529,6 +584,7 @@ export function LandingPage() {
               <Link className="btn primary on-dark lg" to="/login?mode=signup">Start free trial</Link>
               <Link className="btn on-dark lg" to="/login">Sign in</Link>
             </div>
+            <p className="cta-note">Questions first? Write to <a href="mailto:support@xelorsoft.com">support@xelorsoft.com</a></p>
           </div>
         </div>
       </section>
@@ -543,12 +599,13 @@ export function LandingPage() {
             <a href="#booking">Online booking</a>
             <a href="#billing">Billing</a>
             <a href="#features">Features</a>
+            <a href="#faq">Questions</a>
             <Link to="/login">Sign in</Link>
           </nav>
           <nav aria-label="Xelorsoft">
             <a href="https://xelorsoft.com">Xelorsoft</a>
             <a href="https://xsconnect.xelorsoft.com">XS Connect</a>
-            <a href="mailto:info@xelorsoft.com">info@xelorsoft.com</a>
+            <a href="mailto:support@xelorsoft.com">support@xelorsoft.com</a>
           </nav>
         </div>
         <div className="lp-wrap lp-foot-base">

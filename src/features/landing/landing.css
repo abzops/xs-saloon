@@ -292,3 +292,53 @@ html:has(.lp) { scroll-behavior: smooth; }
   html:has(.lp) { scroll-behavior: auto; }
   .lp *, .lp *::before, .lp *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Owner-focused additions ---------- */
+.lp-hero-note { color: var(--silver); font-size: var(--t-sm); }
+.lp-bk-where { margin-top: 6px; font-size: var(--t-sm); color: var(--ink) !important; max-width: 26ch; }
+@media (min-width: 900px) { .lp-bk-where { display: none; } }
+@media (max-width: 899px) { .lp-bk-cal { display: none; } }
+
+.ticks.dark-ink { color: var(--ink); }
+.ticks.dark-ink svg { color: var(--graphite); }
+.lp-sub { font-size: var(--t-lg); letter-spacing: -0.02em; margin: 72px 0 16px; }
+
+.lp-own { justify-self: center; width: 100%; max-width: 360px; background: var(--carbon); border-radius: 40px; padding: 10px; }
+.lp-own-screen { background: var(--canvas); border-radius: 31px; padding: 24px 16px 18px; display: grid; gap: 12px; }
+.lp-own-screen > small { color: var(--graphite); font-size: var(--t-xs); padding: 0 4px; }
+.lp-own-hi { font-size: var(--t-xl); letter-spacing: -0.03em; padding: 0 4px; margin-top: -8px; }
+.lp-own-sales { background: var(--carbon); color: var(--porcelain); border-radius: 22px; padding: 18px; display: grid; gap: 4px; }
+.lp-own-sales > span { color: var(--silver); font-size: var(--t-xs); }
+.lp-own-sales > b { font-size: 2.25rem; letter-spacing: -0.04em; font-weight: 600; }
+.lp-own-methods { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.lp-own-methods span { font-size: 11px; color: var(--silver); background: #2B2B30; border-radius: 999px; padding: 5px 10px; }
+.lp-own-methods b { color: var(--porcelain); font-weight: 600; }
+.lp-own-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lp-own-stats > div { background: var(--paper); border-radius: 18px; padding: 14px; display: grid; gap: 2px; box-shadow: 0 0 0 1px var(--hair); }
+.lp-own-stats span { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--graphite); font-weight: 600; }
+.lp-own-stats b { font-size: var(--t-xl); letter-spacing: -0.03em; font-weight: 600; }
+.lp-own-stats b.due { color: var(--bad); }
+.lp-own-stats small { font-size: 11px; color: var(--graphite); }
+
+.lp-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: st; }
+.lp-steps li { counter-increment: st; display: grid; align-content: start; grid-template-columns: 56px 1fr; column-gap: 8px; row-gap: 4px; padding: 22px 0; border-top: 1px solid var(--hair-strong); }
+.lp-steps li::before { content: counter(st); grid-row: span 2; font-size: 2rem; line-height: 1; font-weight: 600; letter-spacing: -0.04em; color: var(--ink); }
+.lp-steps b { font-size: var(--t-lg); letter-spacing: -0.02em; }
+.lp-steps span { color: var(--graphite); max-width: 52ch; line-height: 1.5; }
+@media (min-width: 900px) {
+  .lp-steps { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .lp-steps li { grid-template-columns: 1fr; padding-top: 24px; border-top: 2px solid var(--ink); }
+  .lp-steps li::before { grid-row: auto; margin-bottom: 18px; }
+}
+
+.cta-note { font-size: var(--t-sm) !important; color: var(--silver) !important; }
+.cta-note a { color: var(--porcelain); }
+
+/* Roles table fits a phone without sideways scrolling */
+@media (max-width: 719px) {
+  .matrix { min-width: 0; table-layout: fixed; }
+  .matrix th { font-size: 10.5px; padding: 12px 0; letter-spacing: -0.01em; }
+  .matrix th:not(:first-child), .matrix td:not(:first-child) { width: 14%; padding-left: 2px; padding-right: 2px; }
+  .matrix th:first-child, .matrix td:first-child { padding-left: 12px; }
+  .matrix td { padding-top: 12px; padding-bottom: 12px; font-size: var(--t-sm); }
+}
